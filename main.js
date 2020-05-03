@@ -17,12 +17,20 @@ function init() {
 }
 
 function update() {
+    window.requestAnimationFrame(update);
+    ctx.clearRect(0,0,W,H);
+
     for (let i = 0; i < n_boids; ++i) {
         let boid = boids[i];
         ctx.beginPath();
         ctx.arc(boid.x, boid.y, 5, 0, Math.PI * 2)
         ctx.fill();
     }
+
+    boids.forEach(boid => {
+        boid.x += boid.vx;
+        boid.y += boid.vy;
+    });
 }
 
 init();
