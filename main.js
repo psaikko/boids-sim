@@ -3,8 +3,9 @@ let ctx = canvas.getContext('2d');
 let W = canvas.width;
 let H = canvas.clientHeight;
 let prevTime = (new Date()).getTime();
-let n_boids = 10;
+let n_boids = 20;
 let boids = []
+let max_v = 4;
 
 function init() {
     for (let i = 0; i < n_boids; ++i) {
@@ -16,10 +17,16 @@ function init() {
     }
 }
 
-function unit_vector(from_x, from_y, to_x, to_y) {
-    let dx = to_x - from_x;
-    let dy = to_y - from_y;
-    let len = Math.sqrt(dx*dx + dy*dy);
+function vec_dist(from, to) {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    return Math.sqrt(dx*dx + dy*dy);
+}
+
+function unit_vector(from, to) {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const len = Math.sqrt(dx*dx + dy*dy);
     return {x:dx/len, y:dy/len};
 }
 
@@ -48,12 +55,45 @@ function update() {
     centroid.y /= n_boids;
 
     // Add pull towards center
-    let pull_force = 0.1;
+    let pull_force = 0.2;
     boids.forEach(boid => {
-        let dir = unit_vector(boid.x, boid.y, centroid.x, centroid.y);
+        let dir = unit_vector(boid, centroid);
         boid.vx += dir.x * pull_force;
         boid.vy += dir.y * pull_force;
     })
+
+    // Add repulsion from other boids
+    let boid_repel_force = 1;
+    for (let i = 0; i < n_boids; ++i) {
+        let boid = boids[i];
+        for (let j = 0; j < n_boids; ++j) {
+            if (j != i) {
+                let other = boids[j];
+                let dir = unit_vector(other, boid);
+                let dist = vec_dist(boid, other);
+                boid.vx += dir.x * boid_repel_force / (dist);
+                boid.vy += dir.y * boid_repel_force / (dist);
+            }
+        }
+    }
+
+    // Add repulsion from edges
+    let wall_repel_force = 10;
+    for (let i = 0; i < n_boids; ++i) {
+        let boid = boids[i];
+        [{x:boid.x, y:0},{x:boid.x, y:H},{x:0, y:boid.y},{x:W, y:boid.y}].forEach(wall => {
+            let dir = unit_vector(wall, boid);
+            let dist = vec_dist(boid, wall);
+            boid.vx += dir.x * wall_repel_force / (dist*dist);
+            boid.vy += dir.y * wall_repel_force / (dist*dist);
+        });
+    }
+
+    // Clamp max speed
+    boids.forEach(boid => {
+        boid.vx = Math.min(Math.max(boid.vx, -max_v), max_v);
+        boid.vy = Math.min(Math.max(boid.vy, -max_v), max_v);
+    });
 }
 
 init();
