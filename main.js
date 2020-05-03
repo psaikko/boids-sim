@@ -3,7 +3,7 @@ let ctx = canvas.getContext('2d');
 let W = canvas.width;
 let H = canvas.clientHeight;
 let prevTime = (new Date()).getTime();
-let n_boids = 20;
+let n_boids = 50;
 let boids = []
 let max_v = 4;
 
@@ -71,8 +71,8 @@ function update() {
                 let other = boids[j];
                 let dir = unit_vector(other, boid);
                 let dist = vec_dist(boid, other);
-                boid.vx += dir.x * boid_repel_force / (dist);
-                boid.vy += dir.y * boid_repel_force / (dist);
+                boid.vx += dir.x * boid_repel_force / (dist*dist);
+                boid.vy += dir.y * boid_repel_force / (dist*dist);
             }
         }
     }
@@ -84,10 +84,29 @@ function update() {
         [{x:boid.x, y:0},{x:boid.x, y:H},{x:0, y:boid.y},{x:W, y:boid.y}].forEach(wall => {
             let dir = unit_vector(wall, boid);
             let dist = vec_dist(boid, wall);
-            boid.vx += dir.x * wall_repel_force / (dist*dist);
-            boid.vy += dir.y * wall_repel_force / (dist*dist);
+            boid.vx += dir.x * wall_repel_force / (dist);
+            boid.vy += dir.y * wall_repel_force / (dist);
         });
     }
+
+    // Add velocity alignment force
+    
+    let align_force = 1;
+    for (let i = 0; i < n_boids; ++i) {
+        let boid = boids[i];
+        for (let j = 0; j < n_boids; ++j) {
+            if (j != i) {
+                let other = boids[j];
+                let dist = vec_dist(boid, other);
+                let p = align_force / (dist*dist);
+                boid.vx = (other.vx * p) + (boid.vx * (1-p));
+                boid.vy = (other.vy * p) + (boid.vy * (1-p));
+            }
+        }
+    }
+    
+
+
 
     // Clamp max speed
     boids.forEach(boid => {
