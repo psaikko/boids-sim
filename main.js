@@ -8,6 +8,10 @@ let boids = []
 let max_v = 4;
 let sight_radius = 100;
 
+let boid_length = 5;
+let boid_wingspan = 10;
+let boid_wing_angle = 3*Math.PI/5;
+
 function init() {
     for (let i = 0; i < n_boids; ++i) {
         let x = Math.random() * W;
@@ -50,7 +54,17 @@ function vec2_rot(v, theta) {
 }
 
 function vec2_add(v1, v2) {
-    return {x: v1.x + v2.x, y: v1.y + v2.y};
+    return {
+        x: v1.x + v2.x, 
+        y: v1.y + v2.y
+    };
+}
+
+function vec2_smul(v, s) {
+    return {
+        x: v.x*s,
+        y: v.y*s
+    }
 }
 
 function vec2_dist(from, to) {
@@ -83,7 +97,24 @@ function update() {
     for (let i = 0; i < n_boids; ++i) {
         let boid = boids[i];
         ctx.beginPath();
-        ctx.arc(boid.x, boid.y, 5, 0, Math.PI * 2)
+
+        const dir = unit_vector({x:0, y:0}, boid.v); 
+        let head = vec2_add(boid, vec2_smul(dir, boid_length));
+        let left = vec2_rot(dir, boid_wing_angle);
+
+        left = vec2_smul(left, boid_wingspan)
+        left = vec2_add(boid, left);
+
+        let right = vec2_rot(dir, -boid_wing_angle);
+
+        right = vec2_smul(right, boid_wingspan)
+        right = vec2_add(boid, right);
+
+        ctx.moveTo(boid.x, boid.y);
+        ctx.lineTo(left.x, left.y);
+        ctx.lineTo(head.x, head.y);
+        ctx.lineTo(right.x, right.y);
+
         ctx.fill();
     }
 
