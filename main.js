@@ -63,7 +63,17 @@ function unit_vector(from, to) {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const len = Math.sqrt(dx*dx + dy*dy);
-    return {x:dx/len, y:dy/len};
+    if (len > 0) {
+        return {
+            x: dx / len, 
+            y: dy / len
+        };
+    } else {
+        return {
+            x: 0,
+            y: 0
+        };
+    }
 }
 
 function update() {
@@ -77,23 +87,36 @@ function update() {
         ctx.fill();
     }
 
-    let centroid = {x:0, y:0};
-
     // Update positions and compute center
     boids.forEach(boid => {
         boid.x += boid.v.x;
         boid.y += boid.v.y;
-        centroid.x += boid.x;
-        centroid.y += boid.y;
     });
 
-    centroid.x /= n_boids;
-    centroid.y /= n_boids;
-
     // Add pull towards center
-    let pull_force = 0.1;
+    let pull_force = 0.05;
     boids.forEach(boid => {
+        let centroid = {x: 0, y: 0};
+        let n = 0;
+
+        boids.forEach(other => {
+            if (vec2_dist(other, boid) < sight_radius) {
+                centroid.x += other.x;
+                centroid.y += other.y;
+                n += 1;
+            }
+        });
+
+        if (n == 0) {
+            console.log(vec2_dist(boid, boid))
+            console.log(boid)
+            console.log(centroid);
+        } 
+
+        centroid.x /= n;
+        centroid.y /= n;
         let dir = unit_vector(boid, centroid);
+        
         boid.v.x += dir.x * pull_force;
         boid.v.y += dir.y * pull_force;
     })
@@ -122,7 +145,7 @@ function update() {
         [{x:boid.x, y:0},{x:boid.x, y:H},{x:0, y:boid.y},{x:W, y:boid.y}].forEach(wall => {
             let dir = unit_vector(wall, boid);
             let dist = vec2_dist(boid, wall);
-            if (dist < 50) {
+            if (dist < 10) {
                 boid.v.x += dir.x * wall_repel_force;
                 boid.v.y += dir.y * wall_repel_force;
             }
@@ -130,13 +153,13 @@ function update() {
     }
 
     // Add velocity alignment force
-    let align_force = 0.01;
+    let align_force = 0.005;
     boids.forEach(boid => {
         let v_sum = {x:0, y:0};
         boids.forEach(other => {
-            v_sum = vec2_add(v_sum, other.v);
+            if (vec2_dist(other, boid) < sight_radius)
+                v_sum = vec2_add(v_sum, other.v);
         })
-        console.log(v_sum);
         const boid_angle = vec2_angle(boid.v);
         const others_angle = vec2_angle(v_sum);
 
