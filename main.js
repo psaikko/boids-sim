@@ -6,7 +6,7 @@ let prevTime = (new Date()).getTime();
 let n_boids = 100;
 let boids = []
 let max_v = 4;
-let sight_radius = 50;
+let sight_radius = 100;
 
 function init() {
     for (let i = 0; i < n_boids; ++i) {
@@ -47,6 +47,10 @@ function vec2_rot(v, theta) {
                   [Math.sin(theta), Math.cos(theta)]];
     return {x: v.x*rmat[0][0] + v.y*rmat[0][1],
             y: v.x*rmat[1][0] + v.y*rmat[1][1]};
+}
+
+function vec2_add(v1, v2) {
+    return {x: v1.x + v2.x, y: v1.y + v2.y};
 }
 
 function vec2_dist(from, to) {
@@ -126,26 +130,23 @@ function update() {
     }
 
     // Add velocity alignment force
-    let align_force = 0.0001;
-    for (let i = 0; i < n_boids; ++i) {
-        let boid = boids[i];
-        for (let j = 0; j < n_boids; ++j) {
-            if (j != i) {             
-                const other = boids[j];
-                const d = vec2_dist(boid, other);
-                // const theta = Math.acos(vec2_dot(boid.v, other.v) / (vec2_len(boid.v) * vec2_len(other.v)))
-                
-                const t1 = vec2_angle(boid.v);
-                const t2 = vec2_angle(other.v);
-                let td = t2 - t1;
-                if (td > Math.PI) td = 2*Math.PI - td;
-                if (td < -Math.PI) td = 2*Math.PI + td;
+    let align_force = 0.01;
+    boids.forEach(boid => {
+        let v_sum = {x:0, y:0};
+        boids.forEach(other => {
+            v_sum = vec2_add(v_sum, other.v);
+        })
+        console.log(v_sum);
+        const boid_angle = vec2_angle(boid.v);
+        const others_angle = vec2_angle(v_sum);
 
-                boid.v = vec2_rot(boid.v, td * align_force);
-            }
-        }
-    }
-    
+        let angle_diff = others_angle - boid_angle;
+        if (angle_diff > Math.PI) angle_diff = 2*Math.PI - angle_diff;
+        if (angle_diff < -Math.PI) angle_diff = 2*Math.PI + angle_diff;
+
+        boid.v = vec2_rot(boid.v, angle_diff * align_force);
+    })
+
     // Clamp max speed
     boids.forEach(boid => {
         boid.v.x = clamp(-max_v, boid.v.x, max_v);
