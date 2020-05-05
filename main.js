@@ -3,14 +3,15 @@ let ctx = canvas.getContext('2d');
 let W = canvas.width;
 let H = canvas.clientHeight;
 let prevTime = (new Date()).getTime();
-let n_boids = 50;
+let n_boids = 100;
 let boids = []
 let max_v = 4;
+let sight_radius = 50;
 
 function init() {
     for (let i = 0; i < n_boids; ++i) {
         let x = Math.random() * W;
-        let y = Math.random() * W;
+        let y = Math.random() * H;
         let vx = Math.random() - 0.5;
         let vy = Math.random() - 0.5;
         boids.unshift({x:x, y:y, v: {x:vx, y:vy}});
@@ -21,12 +22,24 @@ function clamp(min, val, max) {
     return Math.min(Math.max(val, min), max);
 }
 
+function vec2_angle(v) {
+    let x = Math.abs(v.x);
+    let y = Math.abs(v.y);
+
+    let a = Math.atan(y / x);
+
+    if (v.x < 0) a = Math.PI - a;
+    if (v.y < 0) a = 2*Math.PI - a;
+
+    return a;
+}
+
 function vec2_dot(v, w) {
     return v.x*w.x + v.y*w.y;
 }
 
 function vec2_len(v) {
-    return Math.sqrt(v.x*v.x + v.y*v*y);
+    return Math.sqrt(v.x*v.x + v.y*v.y);
 }
 
 function vec2_rot(v, theta) {
@@ -74,7 +87,7 @@ function update() {
     centroid.y /= n_boids;
 
     // Add pull towards center
-    let pull_force = 0.2;
+    let pull_force = 0.1;
     boids.forEach(boid => {
         let dir = unit_vector(boid, centroid);
         boid.v.x += dir.x * pull_force;
@@ -82,7 +95,7 @@ function update() {
     })
 
     // Add repulsion from other boids
-    let boid_repel_force = 10;
+    let boid_repel_force = 0.01;
     for (let i = 0; i < n_boids; ++i) {
         let boid = boids[i];
         for (let j = 0; j < n_boids; ++j) {
@@ -90,38 +103,49 @@ function update() {
                 let other = boids[j];
                 let dir = unit_vector(other, boid);
                 let dist = vec2_dist(boid, other);
-                boid.v.x += dir.x * boid_repel_force / (dist*dist);
-                boid.v.y += dir.y * boid_repel_force / (dist*dist);
+                if (dist < 50) {
+                    boid.v.x += dir.x * boid_repel_force;
+                    boid.v.y += dir.y * boid_repel_force;
+                }
             }
         }
     }
 
     // Add repulsion from edges
-    let wall_repel_force = 10;
+    let wall_repel_force = 1;
     for (let i = 0; i < n_boids; ++i) {
         let boid = boids[i];
         [{x:boid.x, y:0},{x:boid.x, y:H},{x:0, y:boid.y},{x:W, y:boid.y}].forEach(wall => {
             let dir = unit_vector(wall, boid);
             let dist = vec2_dist(boid, wall);
-            boid.v.x += dir.x * wall_repel_force / (dist);
-            boid.v.y += dir.y * wall_repel_force / (dist);
+            if (dist < 50) {
+                boid.v.x += dir.x * wall_repel_force;
+                boid.v.y += dir.y * wall_repel_force;
+            }
         });
     }
 
     // Add velocity alignment force
-    let align_force = 0.1;
+    let align_force = 0.0001;
     for (let i = 0; i < n_boids; ++i) {
         let boid = boids[i];
         for (let j = 0; j < n_boids; ++j) {
-            if (j != i) {                
+            if (j != i) {             
                 const other = boids[j];
-                const theta = Math.acos(vec2_dot(boid.v, other.v) / (vec2_len(boid.v) * vec2_len(boid.v)))
-                boid.v = vec2_rot(boid.v, theta * align_force)
+                const d = vec2_dist(boid, other);
+                // const theta = Math.acos(vec2_dot(boid.v, other.v) / (vec2_len(boid.v) * vec2_len(other.v)))
+                
+                const t1 = vec2_angle(boid.v);
+                const t2 = vec2_angle(other.v);
+                let td = t2 - t1;
+                if (td > Math.PI) td = 2*Math.PI - td;
+                if (td < -Math.PI) td = 2*Math.PI + td;
+
+                boid.v = vec2_rot(boid.v, td * align_force);
             }
         }
     }
     
-
     // Clamp max speed
     boids.forEach(boid => {
         boid.v.x = clamp(-max_v, boid.v.x, max_v);
