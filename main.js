@@ -17,6 +17,28 @@ let boid_repel_force = 0.01;
 let align_force = 0.005;
 let wall_repel_force = 1;
 
+function new_boid() {
+    let x = Math.random() * W;
+    let y = Math.random() * H;
+    let vx = Math.random() - 0.5;
+    let vy = Math.random() - 0.5;
+    return {x:x, y:y, v: {x:vx, y:vy}};
+}
+
+function n_setter(new_n) {
+    if (new_n < n_boids) {
+        while (n_boids > new_n) {
+            boids.pop();
+            n_boids--;
+        }
+    } else {
+        while (n_boids < new_n) {
+            boids.push(new_boid());
+            n_boids++;
+        }
+    }
+}
+
 function hook_up_slider(slider_id, label_id, setter, min_v, init_v, max_v) {
     let slider = document.getElementById(slider_id);
     let label = document.getElementById(label_id);
@@ -39,16 +61,10 @@ function init() {
     hook_up_slider("repel_slider", "repel_label", v => {boid_repel_force = v}, 0, 0.01, 0.1);
     hook_up_slider("align_slider", "align_label", v => {align_force = v}, 0, 0.005, 0.05);
     hook_up_slider("sight_slider", "sight_label", v => {sight_radius = v}, 0, 100, 1000);
+    hook_up_slider("n_slider", "n_label", n_setter, 0, 100, 1000);
 
-
-
-    for (let i = 0; i < n_boids; ++i) {
-        let x = Math.random() * W;
-        let y = Math.random() * H;
-        let vx = Math.random() - 0.5;
-        let vy = Math.random() - 0.5;
-        boids.unshift({x:x, y:y, v: {x:vx, y:vy}});
-    }
+    for (let i = 0; i < n_boids; ++i)
+        boids.unshift(new_boid());
 }
 
 function clamp(min, val, max) {
