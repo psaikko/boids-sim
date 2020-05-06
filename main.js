@@ -12,7 +12,36 @@ let boid_length = 5;
 let boid_wingspan = 10;
 let boid_wing_angle = 3*Math.PI/5;
 
+let pull_force = 0.05;
+let boid_repel_force = 0.01;
+let align_force = 0.005;
+let wall_repel_force = 1;
+
+function hook_up_slider(slider_id, label_id, setter, min_v, init_v, max_v) {
+    let slider = document.getElementById(slider_id);
+    let label = document.getElementById(label_id);
+
+    slider.min = min_v;
+    slider.max = max_v;
+    slider.step = (max_v - min_v) / 1000;
+    slider.value = init_v;
+    label.innerText = ""+init_v;
+
+    slider.onchange = e => {
+        setter(e.target.valueAsNumber);
+        label.innerText = e.target.value;
+    }
+}
+
 function init() {
+
+    hook_up_slider("attr_slider", "attr_label", v => {pull_force = v}, 0, 0.05, 0.5);
+    hook_up_slider("repel_slider", "repel_label", v => {boid_repel_force = v}, 0, 0.01, 0.1);
+    hook_up_slider("align_slider", "align_label", v => {align_force = v}, 0, 0.005, 0.05);
+    hook_up_slider("sight_slider", "sight_label", v => {sight_radius = v}, 0, 100, 1000);
+
+
+
     for (let i = 0; i < n_boids; ++i) {
         let x = Math.random() * W;
         let y = Math.random() * H;
@@ -118,31 +147,24 @@ function update() {
         ctx.fill();
     }
 
-    // Update positions and compute center
+    // Update positions
     boids.forEach(boid => {
         boid.x += boid.v.x;
         boid.y += boid.v.y;
     });
 
     // Add pull towards center
-    let pull_force = 0.05;
     boids.forEach(boid => {
         let centroid = {x: 0, y: 0};
         let n = 0;
 
         boids.forEach(other => {
-            if (vec2_dist(other, boid) < sight_radius) {
+            if (vec2_dist(other, boid) <= sight_radius) {
                 centroid.x += other.x;
                 centroid.y += other.y;
                 n += 1;
             }
         });
-
-        if (n == 0) {
-            console.log(vec2_dist(boid, boid))
-            console.log(boid)
-            console.log(centroid);
-        } 
 
         centroid.x /= n;
         centroid.y /= n;
@@ -153,7 +175,6 @@ function update() {
     })
 
     // Add repulsion from other boids
-    let boid_repel_force = 0.01;
     for (let i = 0; i < n_boids; ++i) {
         let boid = boids[i];
         for (let j = 0; j < n_boids; ++j) {
@@ -170,13 +191,12 @@ function update() {
     }
 
     // Add repulsion from edges
-    let wall_repel_force = 1;
     for (let i = 0; i < n_boids; ++i) {
         let boid = boids[i];
         [{x:boid.x, y:0},{x:boid.x, y:H},{x:0, y:boid.y},{x:W, y:boid.y}].forEach(wall => {
             let dir = unit_vector(wall, boid);
             let dist = vec2_dist(boid, wall);
-            if (dist < 10) {
+            if (dist < 20) {
                 boid.v.x += dir.x * wall_repel_force;
                 boid.v.y += dir.y * wall_repel_force;
             }
@@ -184,7 +204,6 @@ function update() {
     }
 
     // Add velocity alignment force
-    let align_force = 0.005;
     boids.forEach(boid => {
         let v_sum = {x:0, y:0};
         boids.forEach(other => {
@@ -194,11 +213,14 @@ function update() {
         const boid_angle = vec2_angle(boid.v);
         const others_angle = vec2_angle(v_sum);
 
-        let angle_diff = others_angle - boid_angle;
-        if (angle_diff > Math.PI) angle_diff = 2*Math.PI - angle_diff;
-        if (angle_diff < -Math.PI) angle_diff = 2*Math.PI + angle_diff;
+        if (!isNaN(others_angle)) {
+            let angle_diff = others_angle - boid_angle;
 
-        boid.v = vec2_rot(boid.v, angle_diff * align_force);
+            if (angle_diff > Math.PI) angle_diff = 2*Math.PI - angle_diff;
+            if (angle_diff < -Math.PI) angle_diff = 2*Math.PI + angle_diff;
+
+            boid.v = vec2_rot(boid.v, angle_diff * align_force);
+        }
     })
 
     // Clamp max speed
