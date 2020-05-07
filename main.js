@@ -1,3 +1,5 @@
+import Vec2 from './vec2.js'
+
 let canvas = document.getElementById("canvas");
 let ctx = canvas.getContext('2d');
 let W = canvas.width;
@@ -22,7 +24,7 @@ function new_boid() {
     let y = Math.random() * H;
     let vx = Math.random() - 0.5;
     let vy = Math.random() - 0.5;
-    return {x:x, y:y, v: {x:vx, y:vy}};
+    return {p: new Vec2(x,y), v: new Vec2(vx, vy)};
 }
 
 function n_setter(new_n) {
@@ -71,91 +73,25 @@ function clamp(min, val, max) {
     return Math.min(Math.max(val, min), max);
 }
 
-function vec2_angle(v) {
-    let x = Math.abs(v.x);
-    let y = Math.abs(v.y);
-
-    let a = Math.atan(y / x);
-
-    if (v.x < 0) a = Math.PI - a;
-    if (v.y < 0) a = 2*Math.PI - a;
-
-    return a;
-}
-
-function vec2_dot(v, w) {
-    return v.x*w.x + v.y*w.y;
-}
-
-function vec2_len(v) {
-    return Math.sqrt(v.x*v.x + v.y*v.y);
-}
-
-function vec2_rot(v, theta) {
-    const rmat = [[Math.cos(theta), -Math.sin(theta)],
-                  [Math.sin(theta), Math.cos(theta)]];
-    return {x: v.x*rmat[0][0] + v.y*rmat[0][1],
-            y: v.x*rmat[1][0] + v.y*rmat[1][1]};
-}
-
-function vec2_add(v1, v2) {
-    return {
-        x: v1.x + v2.x, 
-        y: v1.y + v2.y
-    };
-}
-
-function vec2_smul(v, s) {
-    return {
-        x: v.x*s,
-        y: v.y*s
-    }
-}
-
-function vec2_dist(from, to) {
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    return Math.sqrt(dx*dx + dy*dy);
-}
-
-function unit_vector(from, to) {
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const len = Math.sqrt(dx*dx + dy*dy);
-    if (len > 0) {
-        return {
-            x: dx / len, 
-            y: dy / len
-        };
-    } else {
-        return {
-            x: 0,
-            y: 0
-        };
-    }
-}
-
 function update() {
-    window.requestAnimationFrame(update);
+    
     ctx.clearRect(0,0,W,H);
 
     for (let i = 0; i < n_boids; ++i) {
         let boid = boids[i];
         ctx.beginPath();
 
-        const dir = unit_vector({x:0, y:0}, boid.v); 
-        let head = vec2_add(boid, vec2_smul(dir, boid_length));
-        let left = vec2_rot(dir, boid_wing_angle);
+        const dir = boid.v.norm(); 
+        let head = boid.p.add(dir.smul(boid_length));
+        let left = dir.rot(boid_wing_angle);
 
-        left = vec2_smul(left, boid_wingspan)
-        left = vec2_add(boid, left);
+        left = boid.p.add(left.smul(boid_wingspan))
 
-        let right = vec2_rot(dir, -boid_wing_angle);
+        let right = dir.rot(-boid_wing_angle);
 
-        right = vec2_smul(right, boid_wingspan)
-        right = vec2_add(boid, right);
+        right = boid.p.add(right.smul(boid_wingspan));
 
-        ctx.moveTo(boid.x, boid.y);
+        ctx.moveTo(boid.p.x, boid.p.y);
         ctx.lineTo(left.x, left.y);
         ctx.lineTo(head.x, head.y);
         ctx.lineTo(right.x, right.y);
@@ -165,42 +101,40 @@ function update() {
 
     // Update positions
     boids.forEach(boid => {
-        boid.x += boid.v.x;
-        boid.y += boid.v.y;
+        boid.p = boid.p.add(boid.v);
     });
 
     // Add pull towards center
     boids.forEach(boid => {
-        let centroid = {x: 0, y: 0};
+        let centroid = new Vec2(0,0);
         let n = 0;
 
         boids.forEach(other => {
-            if (vec2_dist(other, boid) <= sight_radius) {
-                centroid.x += other.x;
-                centroid.y += other.y;
+            if (other.p.dist_to(boid.p) <= sight_radius) {
+                centroid = centroid.add(other.p);
                 n += 1;
             }
         });
 
-        centroid.x /= n;
-        centroid.y /= n;
-        let dir = unit_vector(boid, centroid);
+        centroid = centroid.smul(1 / n);
+        let dir = boid.p.unit_to(centroid);
         
-        boid.v.x += dir.x * pull_force;
-        boid.v.y += dir.y * pull_force;
+        boid.v = boid.v.add(dir.smul(pull_force));
     })
 
+    window.requestAnimationFrame(update);
+
+    
     // Add repulsion from other boids
     for (let i = 0; i < n_boids; ++i) {
         let boid = boids[i];
         for (let j = 0; j < n_boids; ++j) {
             if (j != i) {
                 let other = boids[j];
-                let dir = unit_vector(other, boid);
-                let dist = vec2_dist(boid, other);
+                let dir = other.p.unit_to(boid.p);
+                let dist = boid.p.dist_to(other.p);
                 if (dist < 50) {
-                    boid.v.x += dir.x * boid_repel_force;
-                    boid.v.y += dir.y * boid_repel_force;
+                    boid.v = boid.v.add(dir.smul(boid_repel_force));
                 }
             }
         }
@@ -209,25 +143,25 @@ function update() {
     // Add repulsion from edges
     for (let i = 0; i < n_boids; ++i) {
         let boid = boids[i];
-        [{x:boid.x, y:0},{x:boid.x, y:H},{x:0, y:boid.y},{x:W, y:boid.y}].forEach(wall => {
-            let dir = unit_vector(wall, boid);
-            let dist = vec2_dist(boid, wall);
+        const walls = [new Vec2(boid.p.x, 0), new Vec2(boid.p.x, H), new Vec2(0, boid.p.y), new Vec2(W, boid.p.y)];
+        walls.forEach(wall => {
+            let dir = wall.unit_to(boid.p);
+            let dist = boid.p.dist_to(wall);
             if (dist < 20) {
-                boid.v.x += dir.x * wall_repel_force;
-                boid.v.y += dir.y * wall_repel_force;
+                boid.v = boid.v.add(dir.smul(wall_repel_force));
             }
         });
     }
 
     // Add velocity alignment force
     boids.forEach(boid => {
-        let v_sum = {x:0, y:0};
+        let v_sum = new Vec2(0,0);
         boids.forEach(other => {
-            if (vec2_dist(other, boid) < sight_radius)
-                v_sum = vec2_add(v_sum, other.v);
+            if (other.p.dist_to(boid.p) < sight_radius)
+                v_sum = v_sum.add(other.v);
         })
-        const boid_angle = vec2_angle(boid.v);
-        const others_angle = vec2_angle(v_sum);
+        const boid_angle = boid.v.angle();
+        const others_angle = v_sum.angle();
 
         if (!isNaN(others_angle)) {
             let angle_diff = others_angle - boid_angle;
@@ -235,7 +169,7 @@ function update() {
             if (angle_diff > Math.PI) angle_diff = 2*Math.PI - angle_diff;
             if (angle_diff < -Math.PI) angle_diff = 2*Math.PI + angle_diff;
 
-            boid.v = vec2_rot(boid.v, angle_diff * align_force);
+            boid.v = boid.v.rot(angle_diff * align_force);
         }
     })
 
