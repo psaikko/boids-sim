@@ -65,7 +65,7 @@ export default class Vec3 {
         // console.log(this);
         // console.log(i.smul(c).add(k.smul(d)));
 
-        this2 = this2.rot_towards(v, frac);
+        this2 = this2.rot_towards(v2, frac);
         return i.smul(this2.x).add(k.smul(this2.y));
     }
 

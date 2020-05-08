@@ -178,15 +178,8 @@ function update() {
             if (other.p.dist_to(boid.p) < sight_radius)
                 v_sum = v_sum.add(other.v);
         })
-        
-        /*
-        let v2 = new Vec2(boid.v.x, boid.v.y);
-        v2 = v2.rot_towards(new Vec2(v_sum.x, v_sum.y), align_force);
-        boid.v.x = v2.x;
-        boid.v.y = v2.y;
-*/
+
         boid.v = boid.v.rot_towards(v_sum, align_force);
-        
     })
 
     // Clamp max speed
