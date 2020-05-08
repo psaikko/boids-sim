@@ -30,6 +30,20 @@ export default class Vec2 {
         return new Vec2(this.x*rmat[0][0] + this.y*rmat[0][1],
                     this.x*rmat[1][0] + this.y*rmat[1][1]);
     }
+
+    rot_towards(v, frac) {
+        const target_angle = v.angle();
+        if (!isNaN(target_angle)) {
+            let angle_diff = target_angle - this.angle();
+
+            if (angle_diff > Math.PI) angle_diff = 2*Math.PI - angle_diff;
+            if (angle_diff < -Math.PI) angle_diff = 2*Math.PI + angle_diff;
+
+            return this.rot(angle_diff * frac);
+        } else {
+            return new Vec2(this.x, this.y);
+        }
+    }
     
     add(v) {
         return new Vec2(this.x + v.x, this.y + v.y);

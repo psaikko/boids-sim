@@ -178,17 +178,15 @@ function update() {
             if (other.p.dist_to(boid.p) < sight_radius)
                 v_sum = v_sum.add(other.v);
         })
-        const boid_angle = boid.v.angle();
-        const others_angle = v_sum.angle();
-
-        if (!isNaN(others_angle)) {
-            let angle_diff = others_angle - boid_angle;
-
-            if (angle_diff > Math.PI) angle_diff = 2*Math.PI - angle_diff;
-            if (angle_diff < -Math.PI) angle_diff = 2*Math.PI + angle_diff;
-
-            boid.v = boid.v.rot(angle_diff * align_force)
-        }
+        
+        /*
+        let v2 = new Vec2(boid.v.x, boid.v.y);
+        v2 = v2.rot_towards(new Vec2(v_sum.x, v_sum.y), align_force);
+        boid.v.x = v2.x;
+        boid.v.y = v2.y;
+*/
+        boid.v = boid.v.rot_towards(v_sum, align_force);
+        
     })
 
     // Clamp max speed
