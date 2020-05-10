@@ -18,7 +18,7 @@ let boid_wing_angle = 3*Math.PI/5;
 let pull_force = 0.05;
 let boid_repel_force = 0.01;
 let align_force = 0.005;
-let wall_repel_force = 1;
+let wall_repel_force = 0.05;
 
 function new_boid() {
     let px = Math.random() * W;
@@ -162,9 +162,9 @@ function update() {
             new Vec3(boid.p.x, boid.p.y, 0),
             new Vec3(boid.p.x, boid.p.y, D)];
         walls.forEach(wall => {
-            let dir = wall.unit_to(boid.p);
+            let dir = boid.p.unit_to(new Vec3(W/2,H/2,D/2));
             let dist = boid.p.dist_to(wall);
-            if (dist < 20) {
+            if (dist < 100) {
                 boid.v = boid.v.add(dir.smul(wall_repel_force));
             }
         });
@@ -187,6 +187,10 @@ function update() {
         boid.v.x = clamp(-max_v, boid.v.x, max_v);
         boid.v.y = clamp(-max_v, boid.v.y, max_v);
         boid.v.z = clamp(-max_v, boid.v.z, max_v);
+
+        boid.p.x = clamp(0, boid.p.x, W);
+        boid.p.y = clamp(0, boid.p.y, H);
+        boid.p.z = clamp(0, boid.p.z, D);
     });
 }
 
