@@ -1,8 +1,9 @@
+import * as THREE from './three.module.js'
 import Vec3 from './vec3.js'
 import Vec2 from './vec2.js'
 
 let canvas = document.getElementById("canvas");
-let ctx = canvas.getContext('2d');
+//let ctx = canvas.getContext('2d');
 let W = canvas.width;
 let H = canvas.clientHeight;
 let D = W;
@@ -64,13 +65,13 @@ function hook_up_slider(slider_id, label_id, setter, min_v, init_v, max_v) {
 }
 
 function init() {
-
+/*
     hook_up_slider("attr_slider", "attr_label", v => {pull_force = v}, 0, 0.05, 0.5);
     hook_up_slider("repel_slider", "repel_label", v => {boid_repel_force = v}, 0, 0.01, 0.1);
     hook_up_slider("align_slider", "align_label", v => {align_force = v}, 0, 0.005, 0.05);
     hook_up_slider("sight_slider", "sight_label", v => {sight_radius = v}, 0, 100, 1000);
     hook_up_slider("n_slider", "n_label", n_setter, 0, 100, 1000);
-
+*/
     for (let i = 0; i < n_boids; ++i)
         boids.unshift(new_boid());
 }
@@ -194,5 +195,50 @@ function update() {
     });
 }
 
-init();
-update();
+//init();
+//update();
+
+var camera, scene, renderer;
+var geometry, material, mesh;
+
+init_three();
+animate_three();
+
+function init_three() {
+
+    const fov = 70;
+    const aspect = W/H;
+    const near = 0.1;
+    const far = 10;
+
+	camera = new THREE.PerspectiveCamera( fov, aspect, near, far );
+	camera.position.z = 1;
+
+	scene = new THREE.Scene();
+
+	geometry = new THREE.BoxGeometry( 0.2, 0.2, 0.2 );
+    
+    //material = new THREE.MeshNormalMaterial();
+    material = new THREE.MeshPhongMaterial({color: 0xFF5599});
+
+	mesh = new THREE.Mesh( geometry, material );
+    scene.add( mesh );
+    
+    const light = new THREE.DirectionalLight(0xFFFFFF, 1);
+    light.position.set(-1, 2, 4);
+    scene.add(light);
+
+	renderer = new THREE.WebGLRenderer( { canvas } );
+
+}
+
+function animate_three(time_ms) {
+
+	requestAnimationFrame( animate_three );
+
+	mesh.rotation.x += 0.01;
+	mesh.rotation.y += 0.02;
+
+	renderer.render( scene, camera );
+
+}
