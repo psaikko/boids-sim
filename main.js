@@ -65,13 +65,13 @@ function hook_up_slider(slider_id, label_id, setter, min_v, init_v, max_v) {
 }
 
 function init() {
-/*
+
     hook_up_slider("attr_slider", "attr_label", v => {pull_force = v}, 0, 0.05, 0.5);
     hook_up_slider("repel_slider", "repel_label", v => {boid_repel_force = v}, 0, 0.01, 0.1);
     hook_up_slider("align_slider", "align_label", v => {align_force = v}, 0, 0.005, 0.05);
     hook_up_slider("sight_slider", "sight_label", v => {sight_radius = v}, 0, 100, 1000);
     hook_up_slider("n_slider", "n_label", n_setter, 0, 100, 1000);
-*/
+
     for (let i = 0; i < n_boids; ++i)
         boids.unshift(new_boid());
 }
@@ -84,6 +84,7 @@ let frame_i = 0;
 
 function update() {
     frame_i++;
+    /*
     window.requestAnimationFrame(update);
     ctx.clearRect(0,0,W,H);
 
@@ -113,6 +114,7 @@ function update() {
         ctx.fillStyle = `rgba(0,0,0,${a})`;
         ctx.fill();
     }
+    */
 
     // Update positions
     boids.forEach(boid => {
@@ -199,8 +201,12 @@ function update() {
 //update();
 
 var camera, scene, renderer;
-var geometry, material, mesh;
 
+
+let boid_meshes = [];
+let n_meshes = 10;
+
+init();
 init_three();
 animate_three();
 
@@ -208,37 +214,65 @@ function init_three() {
 
     const fov = 70;
     const aspect = W/H;
-    const near = 0.1;
+    const near = 0.3;
     const far = 10;
 
 	camera = new THREE.PerspectiveCamera( fov, aspect, near, far );
 	camera.position.z = 1;
 
 	scene = new THREE.Scene();
+    const body_geometry = new THREE.BoxGeometry( 0.01, 0.01, 0.03 );
+    const wing_geometry = new THREE.BoxGeometry( 0.1, 0.005, 0.01 );
+    const head_geometry = new THREE.SphereGeometry( 0.01 );
+    const boid_material = new THREE.MeshPhongMaterial({color: 0xFF5599});
 
-	geometry = new THREE.BoxGeometry( 0.2, 0.2, 0.2 );
-    
-    //material = new THREE.MeshNormalMaterial();
-    material = new THREE.MeshPhongMaterial({color: 0xFF5599});
+    for (let i = 0; i < n_boids; i++) {
+        let wing_mesh = new THREE.Mesh( wing_geometry, boid_material );
+        let head_mesh = new THREE.Mesh( head_geometry, boid_material );
+        
+        wing_mesh.position.y += 0.0025;
+        head_mesh.position.z += 0.015;
 
-	mesh = new THREE.Mesh( geometry, material );
-    scene.add( mesh );
+        let boid_geometry = body_geometry.clone();
+        boid_geometry.mergeMesh(wing_mesh);
+        boid_geometry.mergeMesh(head_mesh, 0);
+
+        let boid_mesh = new THREE.Mesh( boid_geometry, boid_material );
+
+        boid_meshes.unshift(boid_mesh);
+        scene.add( boid_mesh );
+    }
     
+    const cage_geometry = new THREE.BoxGeometry(1, 1, 1);
+    var cage_wireframe = new THREE.WireframeGeometry(cage_geometry);
+    var cage_lines = new THREE.LineSegments(cage_wireframe);
+
+    scene.add(cage_lines);
+
     const light = new THREE.DirectionalLight(0xFFFFFF, 1);
     light.position.set(-1, 2, 4);
     scene.add(light);
 
-	renderer = new THREE.WebGLRenderer( { canvas } );
-
+	renderer = new THREE.WebGLRenderer( { canvas, alpha:true } );
+    renderer.setClearColor(0x000000);
+    renderer.setClearAlpha(0);
 }
 
 function animate_three(time_ms) {
-
 	requestAnimationFrame( animate_three );
+    update();
 
-	mesh.rotation.x += 0.01;
-	mesh.rotation.y += 0.02;
+	for (let i = 0; i < n_boids; i++) {
+        boid_meshes[i].position.x = boids[i].p.x / W - 0.5;
+        boid_meshes[i].position.y = boids[i].p.y / H - 0.5;
+        boid_meshes[i].position.z = boids[i].p.z / D - 0.5;
+
+        const orig_axis = new THREE.Vector3(0,0,1);
+        let v_vector = new THREE.Vector3(boids[i].v.x, boids[i].v.y, boids[i].v.z);
+
+        boid_meshes[i].quaternion.setFromUnitVectors(orig_axis, v_vector.normalize());
+        boid_meshes[i].rotation.z = 0;
+    }
 
 	renderer.render( scene, camera );
-
 }
